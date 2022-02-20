@@ -34,23 +34,15 @@ const request = axios.create();
 
 let temp = 0;
 
-const api2 = async (options = {}) => {
+const apiFetch = async (options = {}) => {
   try {
     const { headers, path, body, method, query } = options;
     const controller = new AbortController();
     const { signal } = controller;
-    console.log("query", query);
     const params = !!Object.keys(query).length
       ? "?" + Qs.stringify(query, { arrayFormat: "repeat" })
       : "";
-    console.log("options", options);
     const tempHeader = {
-      ...{
-        version: "1.0",
-        deviceInfo: "HMS",
-        timeStamp: "1645344095772",
-        caId: "17",
-      },
       "Content-Type": "application/json",
       caId: headers?.caid || 30,
       "device-id":
@@ -67,7 +59,6 @@ const api2 = async (options = {}) => {
     const rq = {
       method,
       headers: tempHeader,
-      // signal,
       cache: "no-store",
       agent: httpsAgent,
       signal,
@@ -75,7 +66,6 @@ const api2 = async (options = {}) => {
     if (method !== "get") rq.body = JSON.stringify(body);
     let res = await fetch("https://gate.dev.tripi.vn" + path + params, rq);
     const result = await res.json();
-    console.log("result", JSON.stringify(result));
     return { ...result, header: rq.headers };
   } catch (e) {
     console.log("errer", e);
@@ -83,7 +73,7 @@ const api2 = async (options = {}) => {
   }
 };
 
-const api = (options = {}) => {
+const apiAxios = (options = {}) => {
   const { headers, path, body, method, query } = options;
   const rq = {
     baseURL: "https://gate.dev.tripi.vn/",
@@ -124,7 +114,13 @@ app.use(bodyParser.json());
 app.get("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api2({ headers, path, body, query, method: "get" });
+    const response = await apiFetch({
+      headers,
+      path,
+      body,
+      query,
+      method: "get",
+    });
     res.send(response);
   } catch (e) {
     res.send("error response." + req);
@@ -134,7 +130,13 @@ app.get("*", async (req, res) => {
 app.post("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api2({ headers, path, body, query, method: "post" });
+    const response = await apiFetch({
+      headers,
+      path,
+      body,
+      query,
+      method: "post",
+    });
     console.log("response", response);
     res.send(response);
   } catch (e) {
@@ -145,7 +147,13 @@ app.post("*", async (req, res) => {
 app.put("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api2({ headers, path, body, query, method: "put" });
+    const response = await apiFetch({
+      headers,
+      path,
+      body,
+      query,
+      method: "put",
+    });
     res.send(response);
   } catch (e) {
     res.send("error response." + req);
@@ -155,7 +163,7 @@ app.put("*", async (req, res) => {
 app.delete("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api2({
+    const response = await apiFetch({
       headers,
       path,
       body,
@@ -168,4 +176,4 @@ app.delete("*", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Example app is listening on port 3001."));
+app.listen(3000, () => console.log("Example app is listening on port 3000."));
