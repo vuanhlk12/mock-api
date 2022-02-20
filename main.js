@@ -1,15 +1,16 @@
-//const api = require("./axios");
+//const api  from "./axios");
 //--inpect
-const express = require("express");
-const bodyParser = require("body-parser");
-const Qs = require("qs");
-const CryptoJS = require("crypto-js");
-const axios = require("axios");
-const cors = require("cors");
+import express from "express";
+import bodyParser from "body-parser";
+import Qs from "qs";
+import CryptoJS from "crypto-js";
+import axios from "axios";
+import cors from "cors";
+import fetch from "node-fetch";
+import https from "https";
 
-const proxy = require("http-proxy").createProxyServer({
-  host: "https://gate.dev.tripi.vn/",
-  // port: 80
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
 });
 
 let CONFIG_SERVER = {
@@ -29,10 +30,58 @@ const getAppHash = () => {
   const hashStr = CryptoJS.enc.Base64.stringify(hash);
   return hashStr;
 };
-
 const request = axios.create();
 
 let temp = 0;
+
+const api2 = async (options = {}) => {
+  try {
+    const { headers, path, body, method, query } = options;
+    const controller = new AbortController();
+    const { signal } = controller;
+    console.log("query", query);
+    const params = !!Object.keys(query).length
+      ? "?" + Qs.stringify(query, { arrayFormat: "repeat" })
+      : "";
+    console.log("options", options);
+    const tempHeader = {
+      ...{
+        version: "1.0",
+        deviceInfo: "HMS",
+        timeStamp: "1645344095772",
+        caId: "17",
+      },
+      "Content-Type": "application/json",
+      caId: headers?.caid || 30,
+      "device-id":
+        headers?.["device-id"] || "1640833059904-0.26689283839493694",
+      lang: "vi",
+      "Accept-Language": "vi",
+      platform: "website",
+      appId: headers?.appid ?? "food-merchant-web",
+      appHash: headers?.apphash ?? getAppHash(),
+      version: "1.0",
+    };
+    if (headers?.["login-token"])
+      tempHeader["login-token"] = headers?.["login-token"] || null;
+    const rq = {
+      method,
+      headers: tempHeader,
+      // signal,
+      cache: "no-store",
+      agent: httpsAgent,
+      signal,
+    };
+    if (method !== "get") rq.body = JSON.stringify(body);
+    let res = await fetch("https://gate.dev.tripi.vn" + path + params, rq);
+    const result = await res.json();
+    console.log("result", JSON.stringify(result));
+    return { ...result, header: rq.headers };
+  } catch (e) {
+    console.log("errer", e);
+    return e;
+  }
+};
 
 const api = (options = {}) => {
   const { headers, path, body, method, query } = options;
@@ -64,7 +113,7 @@ const api = (options = {}) => {
 };
 
 const app = express();
-app.options("*", cors());
+app.use(cors());
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -72,32 +121,32 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // parse application/json
 app.use(bodyParser.json());
 
-app.get("*", cors(), async (req, res) => {
+app.get("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api({ headers, path, body, query, method: "get" });
-    res.send(response.data);
+    const response = await api2({ headers, path, body, query, method: "get" });
+    res.send(response);
   } catch (e) {
     res.send("error response." + req);
   }
 });
 
-app.post("*", cors(), async (req, res) => {
+app.post("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    // res.json({ abc: headers });
-    const response = await api({ headers, path, body, query, method: "post" });
-    res.json(response.data);
+    const response = await api2({ headers, path, body, query, method: "post" });
+    console.log("response", response);
+    res.send(response);
   } catch (e) {
-    res.json("error response." + req);
+    res.send("error response." + req);
   }
 });
 
 app.put("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api({ headers, path, body, query, method: "put" });
-    res.send(response.data);
+    const response = await api2({ headers, path, body, query, method: "put" });
+    res.send(response);
   } catch (e) {
     res.send("error response." + req);
   }
@@ -106,17 +155,17 @@ app.put("*", async (req, res) => {
 app.delete("*", async (req, res) => {
   const { headers, path, body, query } = req;
   try {
-    const response = await api({
+    const response = await api2({
       headers,
       path,
       body,
       query,
       method: "delete",
     });
-    res.send(response.data);
+    res.send(response);
   } catch (e) {
     res.send("error response." + req);
   }
 });
 
-app.listen(3001, () => console.log("Example app is listening on port 3001."));
+app.listen(3000, () => console.log("Example app is listening on port 3001."));
